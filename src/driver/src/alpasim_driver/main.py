@@ -57,10 +57,10 @@ import grpc
 import grpc.aio
 
 from .frame_cache import FrameCache
-from .models import DriveCommand
+from .models import DriveCommand, _lazy_load_manual_model
 from .models.ar1_model import AR1Model
 from .models.base import BaseTrajectoryModel, ModelPrediction
-from .models.manual_model import ManualModel
+# ManualModel requires pygame - lazy load only when needed
 from .models.transfuser_model import TransfuserModel
 from .models.vam_model import VAMModel
 from .navigation import determine_command_from_route
@@ -460,6 +460,7 @@ def _create_model(
             context_length=context_length or 4,
         )
     elif cfg.model_type == ModelType.MANUAL:
+        ManualModel = _lazy_load_manual_model()
         return ManualModel(
             camera_ids=camera_ids,
             output_frequency_hz=output_frequency_hz,
@@ -1203,6 +1204,7 @@ def main(hydra_cfg: DriverConfig) -> None:
         ready_event.wait(timeout=30.0)
 
         # Run pygame loop on main thread using the singleton GUI instance
+        ManualModel = _lazy_load_manual_model()
         if ManualModel._gui_instance is not None:
             ManualModel._gui_instance.run_main_loop()
         else:

@@ -178,6 +178,23 @@ class DockerComposeDeployment:
             ret["working_dir"] = container.workdir
         if container.environments:
             ret["environment"] = container.environments
+        
+        # Unset proxy variables for localhost connections (prevents gRPC proxy errors)
+        if self.context.cfg.wizard.debug_flags.use_localhost:
+            if "environment" not in ret:
+                ret["environment"] = {}
+            # Convert list to dict if needed
+            if isinstance(ret["environment"], list):
+                env_dict = {}
+                for item in ret["environment"]:
+                    if "=" in item:
+                        key, val = item.split("=", 1)
+                        env_dict[key] = val
+                ret["environment"] = env_dict
+            ret["environment"]["HTTP_PROXY"] = ""
+            ret["environment"]["HTTPS_PROXY"] = ""
+            ret["environment"]["http_proxy"] = ""
+            ret["environment"]["https_proxy"] = ""
 
         addresses = container.get_all_addresses()
         if addresses:
@@ -225,6 +242,9 @@ class DockerComposeDeployment:
         for c in container_set.runtime or []:
             service = self._to_docker_compose_service(c)
             service["profiles"] = ["sim"]
+            # Add delay before runtime starts to allow services to initialize
+            if service.get("command"):
+                service["command"][-1] = f"sleep 30 && {service['command'][-1]}"
             # Runtime needs host PID namespace for process monitoring
             service["pid"] = "host"
             # Runtime needs access to all GPUs for telemetry/resource monitoring

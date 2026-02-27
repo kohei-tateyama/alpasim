@@ -5,16 +5,23 @@
 
 from .ar1_model import AR1Model
 from .base import BaseTrajectoryModel, DriveCommand, ModelPrediction
-from .manual_model import ManualModel
+# ManualModel requires pygame - lazy load only when needed
 from .transfuser_model import TransfuserModel
 from .vam_model import VAMModel
+
+
+def _lazy_load_manual_model():
+    """Lazy import ManualModel to avoid requiring pygame dependency."""
+    from .manual_model import ManualModel
+    return ManualModel
+
 
 __all__ = [
     "AR1Model",
     "BaseTrajectoryModel",
     "DriveCommand",
-    "ManualModel",
     "ModelPrediction",
     "TransfuserModel",
     "VAMModel",
+    "_lazy_load_manual_model",
 ]
