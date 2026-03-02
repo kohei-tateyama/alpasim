@@ -109,9 +109,11 @@ class AR1Model(BaseTrajectoryModel):
         """
         logger.info("Loading AR1 checkpoint from %s", checkpoint_path)
 
-        self._model = AlpamayoR1.from_pretrained(checkpoint_path, dtype=self.DTYPE).to(
-            device
-        )
+        self._model = AlpamayoR1.from_pretrained(
+            checkpoint_path,
+            dtype=self.DTYPE,
+            local_files_only=True,  # Force offline mode for Bosch corporate network
+        ).to(device)
         self._processor = helper.get_processor(self._model.tokenizer)
 
         self._device = device

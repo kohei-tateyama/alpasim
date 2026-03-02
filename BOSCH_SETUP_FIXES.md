@@ -301,6 +301,8 @@ docker compose -f tutorial/docker-compose.yaml build --no-cache \
 2. **Proxy variables cleared:** Prevents gRPC from trying to proxy localhost connections
 3. **30-second delay:** Gives driver time to load VaVAM model (~13 seconds) before runtime tries to connect
 
+**Note for Alpamayo-R1:** The 30-second delay is sufficient for VaVAM but **must be increased to 90 seconds** for Alpamayo-R1 (manually edit `tutorial/docker-compose.yaml` after generation). See the "Running Alpamayo-R1 Model" section below for details.
+
 ---
 
 ## Complete Setup Instructions
@@ -546,14 +548,350 @@ Files in tutorial/ are created by Docker containers running as root.
 
 ---
 
-## Testing Other Configurations
+## Running Alpamayo-R1 Model (Step-by-Step Guide)
 
-### Run with Alpamayo-R1 Model
+### Background
+The Alpamayo-R1 model is a 10B parameter vision-language driving model that requires downloading models from HuggingFace. In the Bosch corporate network, direct HuggingFace access from Docker containers is blocked, requiring offline model setup.
+
+---
+
+### Complete Workflow Summary
+
+**Step 1:** Download models on host (outside Docker)
 ```bash
+huggingface-cli download nvidia/Alpamayo-R1-10B
+huggingface-cli download Qwen/Qwen3-VL-2B-Instruct
+huggingface-cli download Qwen/Qwen3-VL-8B-Instruct
+```
+
+**Step 2:** Generate configuration with wizard
+```bash
+cd /workspace/vla-test/alpasim
+sudo rm -rf tutorial/
 alpasim_wizard +deploy=local \
-  wizard.log_dir=$PWD/tutorial_alpamayo \
+  wizard.log_dir=$PWD/tutorial \
   wizard.debug_flags.use_localhost=true \
   driver=[ar1,ar1_runtime_configs]
+```
+
+**Step 3:** Edit `tutorial/docker-compose.yaml` to add HuggingFace offline variables to driver:
+```yaml
+environment:
+  HF_HUB_OFFLINE: '1'
+  HF_DATASETS_OFFLINE: '1'
+  HF_HUB_DISABLE_TELEMETRY: '1'
+  TRANSFORMERS_OFFLINE: '1'
+  HTTPS_PROXY: ''
+  HTTP_PROXY: ''
+```
+
+**Step 4:** Change runtime sleep from 30 to 90 seconds in `tutorial/docker-compose.yaml`
+
+**Step 5:** Run simulation
+```bash
+cd tutorial/
+./run.sh
+```
+
+---
+
+### Detailed Steps
+
+### Step 1: Download Required Models on Host Machine
+
+Since Docker containers cannot access huggingface.co, download models on the host machine first:
+
+**Download Alpamayo-R1 main model (~22GB):**
+```bash
+# On host machine (outside Docker)
+huggingface-cli download nvidia/Alpamayo-R1-10B
+```
+
+Expected output:
+```
+Fetching 15 files: 100%|████████████████████████| 15/15 [XX:XX<00:00, X.XXs/it]
+```
+
+**Download Qwen3-VL processor models:**
+
+Alpamayo-R1 requires BOTH Qwen3-VL models (both 2B and 8B versions):
+
+```bash
+# Download 2B version (~5GB)
+huggingface-cli download Qwen/Qwen3-VL-2B-Instruct
+
+# Download 8B version (~16GB)  
+huggingface-cli download Qwen/Qwen3-VL-8B-Instruct
+```
+
+**Important:** Both models are required. The model uses different Qwen versions for different processing stages.
+
+**Verify downloads:**
+```bash
+ls -lh ~/.cache/huggingface/hub/ | grep -E "(Alpamayo|Qwen3-VL)"
+```
+
+Expected output:
+```
+models--nvidia--Alpamayo-R1-10B
+models--Qwen--Qwen3-VL-2B-Instruct
+models--Qwen--Qwen3-VL-8B-Instruct
+```
+
+**Total download size:** ~43GB (22GB Alpamayo + 5GB Qwen-2B + 16GB Qwen-8B)
+
+### Step 2: Identify Required Processor Version
+
+If unsure which Qwen version is needed, query the Docker image:
+
+```bash
+docker run --rm --entrypoint bash alpasim-base:0.1.3 -c \
+  "cd /repo && uv run python -c \"from alpamayo_r1.helper import BASE_PROCESSOR_NAME; print('Processor needed:', BASE_PROCESSOR_NAME)\""
+```
+
+Expected output:
+```
+Processor needed: Qwen/Qwen3-VL-2B-Instruct
+```
+
+**Note:** Despite only showing the 2B version, the model actually requires BOTH 2B and 8B Qwen models to be downloaded.
+
+### Step 3: Generate Docker Compose Configuration
+
+Generate the configuration with localhost networking:
+
+```bash
+cd /workspace/vla-test/alpasim
+sudo rm -rf tutorial/
+alpasim_wizard +deploy=local \
+  wizard.log_dir=$PWD/tutorial \
+  wizard.debug_flags.use_localhost=true \
+  driver=[ar1,ar1_runtime_configs]
+```
+
+### Step 4: Manually Edit Docker Compose for Offline HuggingFace Mode
+
+**CRITICAL:** The wizard doesn't add HuggingFace offline variables automatically. You must manually edit `tutorial/docker-compose.yaml`.
+
+**Edit the driver-0 service environment section:**
+
+Find this section (around line 50):
+```yaml
+  driver-0:
+    ...
+    entrypoint: bash
+    environment:
+      HTTPS_PROXY: ''
+      HTTP_PROXY: ''
+      http_proxy: ''
+      https_proxy: ''
+```
+
+Replace with:
+```yaml
+  driver-0:
+    ...
+    entrypoint: bash
+    environment:
+      HF_HUB_OFFLINE: '1'
+      HF_DATASETS_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      HTTPS_PROXY: ''
+      HTTP_PROXY: ''
+      http_proxy: ''
+      https_proxy: ''
+```
+
+**Verify the HuggingFace cache mount exists:**
+
+The wizard should have already added this to the driver-0 volumes section:
+```yaml
+  driver-0:
+    ...
+    volumes:
+      - /workspace/vla-test/alpasim/data/drivers:/mnt/drivers
+      - /workspace/vla-test/alpasim/tutorial:/mnt/output
+      - /workspace/vla-test/alpasim/src:/repo/src
+      - /home/tko3yh/.cache/huggingface:/root/.cache/huggingface  # ← Should be present
+```
+
+If this line is missing, add it.
+
+### Step 5: Increase Runtime Startup Delay
+
+Alpamayo-R1 (10B parameters) takes significantly longer to load than VaVAM (~60-90 seconds vs ~13 seconds).
+
+**Edit `tutorial/docker-compose.yaml` runtime service:**
+
+Find the runtime-0 service command (around line 113):
+```yaml
+  runtime-0:
+    ...
+    command:
+      - bash
+      - -c
+      - sleep 30 && uv run python -m alpasim_runtime.simulate ...
+```
+
+Change `sleep 30` to `sleep 90`:
+```yaml
+  runtime-0:
+    ...
+    command:
+      - bash
+      - -c
+      - sleep 90 && uv run python -m alpasim_runtime.simulate ...
+```
+
+**Why 90 seconds?**
+- Model loading: ~60-70 seconds
+- gRPC server startup: ~5 seconds
+- Buffer for safety: ~15 seconds
+
+### Step 6: Run the Simulation
+
+```bash
+cd /workspace/vla-test/alpasim/tutorial
+./run.sh
+```
+
+### Step 7: Monitor Driver Startup
+
+Watch the driver logs to see model loading progress:
+
+```bash
+docker logs -f tutorial-driver-0-1
+```
+
+Expected output sequence:
+```
+[2026-02-27 06:34:42,XXX][__main__][INFO] - Starting AR1 driver on 0.0.0.0:6000
+[2026-02-27 06:34:42,XXX][alpasim_driver.models.ar1_model][INFO] - Loading Alpamayo-R1 model...
+[2026-02-27 06:35:45,XXX][alpasim_driver.models.ar1_model][INFO] - Model loaded successfully
+[2026-02-27 06:35:45,XXX][__main__][INFO] - Driver service ready
+```
+
+### Step 8: Verify Chain-of-Causation Reasoning Output
+
+Alpamayo-R1 generates natural language reasoning for each driving decision. Check the logs:
+
+```bash
+docker logs tutorial-driver-0-1 2>&1 | grep "AR1 Chain-of-Causation" | tail -20
+```
+
+Expected output:
+```
+[2026-02-27 06:37:53,852][alpasim_driver.models.ar1_model][INFO] - AR1 Chain-of-Causation: ['Keep distance to the lead vehicle because it is ahead in the same lane.']
+[2026-02-27 06:37:55,922][alpasim_driver.models.ar1_model][INFO] - AR1 Chain-of-Causation: ['Keep distance to the lead vehicle to maintain a safe following gap.']
+[2026-02-27 06:37:58,092][alpasim_driver.models.ar1_model][INFO] - AR1 Chain-of-Causation: ['Keep distance to the lead vehicle because it is directly ahead in the same lane.']
+```
+
+**Save all reasoning outputs to a file:**
+```bash
+docker logs tutorial-driver-0-1 2>&1 | grep "AR1 Chain-of-Causation" > alpamayo_reasoning_outputs.txt
+```
+
+### Step 9: Check Simulation Results
+
+After simulation completes (typically 3-5 minutes), check the metrics:
+
+```bash
+docker logs tutorial-runtime-0-1 2>&1 | grep "Aggregated metrics"
+```
+
+Example successful output:
+```
+Aggregated metrics for db24aee6-13a5-11f1-b09f-77dc79efbcc2: {
+  'collision_front': '0.0000', 
+  'collision_rear': '0.0000', 
+  'collision_lateral': '0.0000', 
+  'collision_any': '0.0000', 
+  'offroad': '0.0000', 
+  'wrong_lane': '1.0000', 
+  'progress': '1.0000', 
+  'progress_rel': '1.0000', 
+  'dist_traveled_m': '221.2361',
+  'dist_to_gt_trajectory': '32.1486',
+  'plan_deviation': '0.3169'
+}
+```
+
+**Key metrics:**
+- **0 collisions** (front, rear, lateral)
+- **100% progress** (completed the route)
+- **221.24 meters traveled**
+- **Chain-of-Causation reasoning** logged at each step
+
+### Performance Comparison: Alpamayo-R1 vs VaVAM
+
+| Metric | VaVAM | Alpamayo-R1 | Notes |
+|--------|-------|-------------|-------|
+| Model Size | 318M + 37M params | 10B params | Alpamayo is 28x larger |
+| Loading Time | ~13 seconds | ~60-70 seconds | Requires 90s startup buffer |
+| Inference Speed | ~0.5s per step | ~2.1s per step | Alpamayo is 4x slower |
+| Distance Traveled | 194.44m | 221.24m | Scene-dependent |
+| Language Output | ❌ None | ✅ Chain-of-Causation reasoning | Alpamayo provides explainability |
+| GPU Memory | ~8 GB | ~25 GB | Requires larger GPU |
+
+### Troubleshooting Alpamayo-R1
+
+#### Issue: "Cannot find the requested files in the disk cache"
+
+**Cause:** Wrong Qwen processor version downloaded or HuggingFace cache not mounted.
+
+**Solution:**
+```bash
+# Check what's in your cache
+ls ~/.cache/huggingface/hub/ | grep Qwen
+
+# Should see BOTH:
+# - models--Qwen--Qwen3-VL-2B-Instruct
+# - models--Qwen--Qwen3-VL-8B-Instruct
+
+# Download both if missing
+huggingface-cli download Qwen/Qwen3-VL-2B-Instruct
+huggingface-cli download Qwen/Qwen3-VL-8B-Instruct
+
+# Verify docker-compose.yaml has cache mount
+grep "huggingface" tutorial/docker-compose.yaml
+```
+
+#### Issue: "DEADLINE_EXCEEDED" errors from runtime
+
+**Cause:** Runtime tried to connect before Alpamayo-R1 finished loading (30s timeout too short).
+
+**Solution:** Increase sleep delay in `tutorial/docker-compose.yaml`:
+```yaml
+# In runtime-0 service
+command:
+  - bash
+  - -c
+  - sleep 90 && uv run python -m alpasim_runtime.simulate ...  # Change from 30 to 90
+```
+
+#### Issue: Model download fails with "Name or service not known"
+
+**Cause:** Trying to download models from inside Docker container (blocked by firewall).
+
+**Solution:** Always download on host machine:
+```bash
+# Do this OUTSIDE Docker, on your host terminal
+huggingface-cli download nvidia/Alpamayo-R1-10B
+huggingface-cli download Qwen/Qwen3-VL-2B-Instruct
+huggingface-cli download Qwen/Qwen3-VL-8B-Instruct
+
+```
+
+---
+
+## Testing Other Configurations
+
+### Run with Alpamayo-R1 Model (Quick Command)
+```bash
+# After completing all setup steps above
+cd /workspace/vla-test/alpasim/tutorial
+./run.sh
 ```
 
 ### Run Multiple Scenarios
@@ -594,9 +932,10 @@ alpasim_wizard +deploy=local \
 
 ### Model Loading Times
 - **VaVAM model:** ~13 seconds to load checkpoint (318M + 37M parameters)
+- **Alpamayo-R1 model:** ~60-70 seconds to load (10B parameters + Qwen processor)
 - **Physics service:** ~5 seconds to initialize scene
 - **Sensorsim warmup:** ~16 seconds for first render
-- **Total before runtime ready:** ~30-35 seconds
+- **Total before runtime ready:** ~30-35 seconds (VaVAM), ~90 seconds (Alpamayo-R1)
 
 ### Resource Requirements
 - GPU: NVIDIA RTX 6000 Ada Generation (47 GiB)
