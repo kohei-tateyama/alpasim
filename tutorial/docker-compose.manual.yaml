@@ -1,0 +1,44 @@
+# docker-compose override for manual (keyboard) driver mode.
+# The driver-0 container is kept in the same Docker network but switched to
+# model_type=MANUAL — no checkpoint is loaded, no GPU is needed.
+# runtime-0 connects to driver-0:6000 exactly as in normal sim mode.
+#
+# Usage:
+#   docker compose -f docker-compose.yaml -f docker-compose.manual.yaml --profile sim up
+#
+# Controls (pygame window):
+#   W/↑  Accelerate   S/↓  Brake   A/←  Steer left   D/→  Steer right
+#   SPACE  Emergency stop   ESC/Q  Quit
+
+services:
+  driver-0:
+    # Use the manual driver config (MANUAL model, no checkpoint, CPU-only).
+    command:
+      - -c
+      - >-
+        uv pip install --no-index --find-links=/mnt/wheels pygame -q &&
+        uv run -m alpasim_driver.main --config-path=/mnt/output
+        --config-name=driver-config-manual.yaml
+    # Remove GPU reservation — manual model is CPU-only.
+    deploy:
+      resources:
+        reservations:
+          devices: []
+    # Pass through the host display so the pygame window can open.
+    environment:
+      HF_HUB_OFFLINE: '1'
+      HF_DATASETS_OFFLINE: '1'
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      HTTPS_PROXY: ''
+      HTTP_PROXY: ''
+      http_proxy: ''
+      https_proxy: ''
+      DISPLAY: "${DISPLAY:-:0}"
+    volumes:
+      - /workspace/vla-test/alpasim/data/drivers:/mnt/drivers
+      - /workspace/vla-test/alpasim/tutorial:/mnt/output
+      - /workspace/vla-test/alpasim/src:/repo/src
+      - /home/tko3yh/.cache/huggingface:/root/.cache/huggingface
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${WHEELS_DIR:-/tmp/alpasim-wheels}:/mnt/wheels:ro

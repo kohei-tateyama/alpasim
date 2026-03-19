@@ -1,0 +1,10 @@
+description: unspecified
+run_args: unknownArgs
+run_dir: /workspace/vla-test/alpasim/tutorial
+run_name: LR-d6484fdb-9d92-42e6-a88f-2620816456d2
+run_time: '2026-03-19 13:43:18'
+run_user: tko3yh
+run_uuid: d6484fdb-9d92-42e6-a88f-2620816456d2
+slurm_job_id: 0
+submitter: unspecified
+test_suite_id: null

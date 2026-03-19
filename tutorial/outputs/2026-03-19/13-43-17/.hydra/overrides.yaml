@@ -1,0 +1,4 @@
+- +deploy=local
+- wizard.log_dir=/workspace/vla-test/alpasim/tutorial/tutorial
+- wizard.debug_flags.use_localhost=true
+- driver=[ar1,ar1_runtime_configs]

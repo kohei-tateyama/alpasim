@@ -1,0 +1,25 @@
+host: 0.0.0.0
+inference:
+  context_length: 4
+  max_batch_size: 1
+  subsample_factor: 1
+  use_cameras:
+    - camera_cross_left_120fov
+    - camera_front_wide_120fov
+    - camera_cross_right_120fov
+    - camera_front_tele_30fov
+log_level: INFO
+model:
+  checkpoint_path: nvidia/Alpamayo-R1-10B
+  device: cuda
+  model_type: ALPAMAYO_R1
+output_dir: /mnt/output/driver
+plot_debug_images: false
+port: ???
+route:
+  command_distance_threshold: 3.0
+  default_command: 2
+  min_lookahead_distance: 20.0
+  use_waypoint_commands: true
+trajectory_optimizer:
+  enabled: false

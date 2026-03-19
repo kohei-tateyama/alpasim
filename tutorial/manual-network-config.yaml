@@ -1,0 +1,16 @@
+# Network config for manual mode.
+# The AI driver-0 container is replaced by the manual driver running on the host at port 6789.
+controller:
+  addresses:
+    - controller-0:6003
+driver:
+  addresses:
+    - host.docker.internal:6789
+physics:
+  addresses:
+    - physics-0:6002
+sensorsim:
+  addresses:
+    - sensorsim-0:6001
+trafficsim:
+  addresses: []

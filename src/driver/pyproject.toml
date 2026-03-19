@@ -19,13 +19,14 @@ dependencies = [
   "pillow",
   "rich",
   "click",
-  "grpcio",
+  "grpcio>=1.70.0,<1.78",
   "hydra-core",
   "omegaconf",
   "alpasim-grpc",
   "beartype",
   "jaxtyping",
   "timm",
+  "peft",
   "pygame>=2.5.0", # manual driving
 ]
 

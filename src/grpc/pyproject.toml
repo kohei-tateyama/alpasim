@@ -1,5 +1,5 @@
 [build-system]
-requires = [ "setuptools>=61.0,<82", "grpcio-tools", "protobuf>=4.0.0" ]
+requires = [ "setuptools>=61.0,<82", "grpcio-tools>=1.70.0,<1.78", "protobuf>=4.0.0" ]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,8 +8,8 @@ version = "0.53.0"
 description = "gRPC API definitions for Alpamayo Sim"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-  "grpcio",
-  "grpcio-tools",
+  "grpcio>=1.70.0,<1.78",
+  "grpcio-tools>=1.70.0,<1.78",
   "dataclasses-json>=0.6.7",
   "protobuf>=4.0.0,<5.0.0",
   "numpy",

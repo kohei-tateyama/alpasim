@@ -1,0 +1,23 @@
+host: 0.0.0.0
+inference:
+  context_length: 4
+  max_batch_size: 1
+  subsample_factor: 1
+  use_cameras:
+    - camera_front_wide_120fov
+log_level: INFO
+model:
+  checkpoint_path: /mnt/drivers/vavam/VAM_width_1024_pretrained_139k.pt
+  tokenizer_path: /mnt/drivers/vavam/VQ_ds16_16384_llamagen_encoder.jit
+  device: cuda
+  model_type: VAM
+output_dir: /mnt/output/driver
+plot_debug_images: false
+port: ???
+route:
+  command_distance_threshold: 3.0
+  default_command: 2
+  min_lookahead_distance: 20.0
+  use_waypoint_commands: true
+trajectory_optimizer:
+  enabled: false

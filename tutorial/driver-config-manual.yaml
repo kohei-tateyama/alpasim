@@ -1,0 +1,21 @@
+host: 0.0.0.0
+port: 6000
+log_level: INFO
+output_dir: /mnt/output/driver
+plot_debug_images: false
+
+model:
+  model_type: MANUAL
+  checkpoint_path: "unused"  # Manual model needs no checkpoint
+  device: "cpu"              # CPU only — no GPU required
+
+inference:
+  use_cameras:
+    - camera_front_wide_120fov
+  max_batch_size: 1
+  subsample_factor: 1
+  context_length: 1
+
+route:
+  default_command: 2         # straight
+  use_waypoint_commands: false

@@ -35,7 +35,7 @@ dependencies = [
     "mypy>=1.0.0",
     "types-protobuf",
     "types-aiofiles",
-    "grpcio>=1.70.0",
+    "grpcio>=1.70.0,<1.78",
     "pytest-grpc>=0.8.0",
     "pyyaml>=6.0.2",
 ]

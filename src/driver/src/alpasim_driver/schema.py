@@ -17,6 +17,7 @@ class ModelType(str, Enum):
     TRANSFUSER = "transfuser"
     ALPAMAYO_R1 = "alpamayo_r1"
     MANUAL = "manual"
+    SIMLINGO = "simlingo"
 
 
 @dataclass
@@ -31,6 +32,7 @@ class ModelConfig:
     checkpoint_path: str = MISSING  # Path to model checkpoint (.pt/.pth)
     device: str = MISSING  # Device to run inference on (cuda/cpu)
     tokenizer_path: Optional[str] = None  # Only required for VAM
+    simlingo_repo_path: Optional[str] = None  # Only required for SIMLINGO: path to simlingo git repo
 
 
 @dataclass

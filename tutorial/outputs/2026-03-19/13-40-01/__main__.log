@@ -1,0 +1,28 @@
+[2026-03-19 13:40:01,420][alpasim_wizard][INFO] - Scenes: 
+shape: (1, 2)
+┌─────────────────────────────────┬────────────────────┐
+│ scene_id                        ┆ nre_version_string │
+│ ---                             ┆ ---                │
+│ str                             ┆ str                │
+╞═════════════════════════════════╪════════════════════╡
+│ clipgt-05bb8212-63e1-40a8-b4fc… ┆ 25.7.9-e633dd23    │
+└─────────────────────────────────┴────────────────────┘
+[2026-03-19 13:40:01,422][alpasim_wizard][INFO] - Created sceneset directory at /workspace/vla-test/alpasim/data/nre-artifacts/scenesets/2ecd7b86f6a864127b8bbecbff539872
+[2026-03-19 13:40:01,428][alpasim_wizard.context][INFO] - Relative sceneset path: scenesets/2ecd7b86f6a864127b8bbecbff539872
+[2026-03-19 13:40:01,525][alpasim_wizard.services][INFO] - Built 4 simulation containers
+[2026-03-19 13:40:01,525][alpasim_wizard.services][INFO] - Built 0 evaluation containers
+[2026-03-19 13:40:01,525][alpasim_wizard.services][INFO] - Built 0 aggregation containers
+[2026-03-19 13:40:01,535][alpasim_wizard.deployment.docker_compose][INFO] - Writing docker compose YAML to /workspace/vla-test/alpasim/tutorial/docker-compose.yaml
+[2026-03-19 13:40:01,541][alpasim_wizard.deployment.docker_compose][INFO] - Skipping evaluation phase (no eval services configured)
+[2026-03-19 13:40:01,541][alpasim_wizard.deployment.docker_compose][INFO] - Skipping aggregation phase (no aggregation services configured)
+[2026-03-19 13:40:01,541][alpasim_wizard.deployment.docker_compose][INFO] - Generated run script: /workspace/vla-test/alpasim/tutorial/run.sh
+[2026-03-19 13:40:01,541][alpasim_wizard.deployment.docker_compose][INFO] - Docker Compose configuration generated in /workspace/vla-test/alpasim/tutorial
+[2026-03-19 13:40:01,541][alpasim_wizard.deployment.docker_compose][INFO] - Generated run script: /workspace/vla-test/alpasim/tutorial/run.sh
+[2026-03-19 13:40:01,584][alpasim_wizard.services][INFO] - Built 4 simulation containers
+[2026-03-19 13:40:01,584][alpasim_wizard.services][INFO] - Built 0 evaluation containers
+[2026-03-19 13:40:01,584][alpasim_wizard.services][INFO] - Built 0 aggregation containers
+[2026-03-19 13:40:01,584][alpasim_wizard.configuration][INFO] - Generating all configurations...
+[2026-03-19 13:40:01,770][root][INFO] - Validating saved wizard config against schema...
+[2026-03-19 13:40:02,453][alpasim_wizard.utils][INFO] - Validated saved config at /workspace/vla-test/alpasim/tutorial/wizard-config-loadable.yaml against schema successfully.
+[2026-03-19 13:40:02,453][alpasim_wizard.configuration][INFO] - Generated 6 configuration files
+[2026-03-19 13:40:02,454][alpasim_wizard.deployment.docker_compose][INFO] - Executing docker compose run script: /workspace/vla-test/alpasim/tutorial/run.sh

@@ -6,6 +6,7 @@
 from .ar1_model import AR1Model
 from .base import BaseTrajectoryModel, DriveCommand, ModelPrediction
 # ManualModel requires pygame - lazy load only when needed
+from .simlingo_model import SimLingoModel
 from .transfuser_model import TransfuserModel
 from .vam_model import VAMModel
 
@@ -21,6 +22,7 @@ __all__ = [
     "BaseTrajectoryModel",
     "DriveCommand",
     "ModelPrediction",
+    "SimLingoModel",
     "TransfuserModel",
     "VAMModel",
     "_lazy_load_manual_model",

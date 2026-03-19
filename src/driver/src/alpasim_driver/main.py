@@ -61,6 +61,7 @@ from .models import DriveCommand, _lazy_load_manual_model
 from .models.ar1_model import AR1Model
 from .models.base import BaseTrajectoryModel, ModelPrediction
 # ManualModel requires pygame - lazy load only when needed
+from .models.simlingo_model import SimLingoModel
 from .models.transfuser_model import TransfuserModel
 from .models.vam_model import VAMModel
 from .navigation import determine_command_from_route
@@ -458,6 +459,15 @@ def _create_model(
             device=device,
             camera_ids=camera_ids,
             context_length=context_length or 4,
+        )
+    elif cfg.model_type == ModelType.SIMLINGO:
+        from .models.simlingo_model import _DEFAULT_SIMLINGO_REPO_PATH  # noqa: PLC0415
+
+        return SimLingoModel(
+            checkpoint_path=cfg.checkpoint_path,
+            device=device,
+            camera_ids=camera_ids,
+            simlingo_repo_path=cfg.simlingo_repo_path or _DEFAULT_SIMLINGO_REPO_PATH,
         )
     elif cfg.model_type == ModelType.MANUAL:
         ManualModel = _lazy_load_manual_model()
@@ -1119,6 +1129,62 @@ async def serve(cfg: DriverConfig) -> None:
         await service.stop_worker()
 
 
+async def _serve_linux_manual(cfg: DriverConfig) -> None:
+    """Run the gRPC server on the main asyncio event loop (Linux manual mode).
+
+    On Linux, SDL/pygame has no main-thread requirement, so we can run the
+    pygame GUI in a background thread and keep gRPC on the main event loop
+    where grpc.aio works correctly.  Running grpc.aio in a secondary asyncio
+    event loop (background thread) causes silent routing failures with
+    grpcio >= 1.67 on Linux.
+
+    Args:
+        cfg: Driver configuration.
+    """
+    server = grpc.aio.server()
+    loop = asyncio.get_running_loop()
+
+    service = EgoDriverService(
+        cfg=cfg,
+        loop=loop,
+        grpc_server=server,
+    )
+    add_EgodriverServiceServicer_to_server(service, server)
+
+    address = f"{cfg.host}:{cfg.port}"
+    server.add_insecure_port(address)
+    await server.start()
+
+    external_ip = _get_external_ip()
+    logger.info(
+        "Starting %s driver on %s (external IP: %s:%d)",
+        cfg.model.model_type.value,
+        address,
+        external_ip,
+        cfg.port,
+    )
+
+    # Run the pygame GUI in a background thread so that gRPC stays on the
+    # main event loop.  On Linux, SDL can be initialised from any thread.
+    ManualModel = _lazy_load_manual_model()
+    gui_thread = None
+    if ManualModel._gui_instance is not None:
+        gui_thread = threading.Thread(
+            target=ManualModel._gui_instance.run_main_loop,
+            name="pygame-gui",
+            daemon=True,
+        )
+        gui_thread.start()
+        logger.info("Pygame GUI started in background thread")
+    else:
+        logger.warning("ManualModel GUI instance not found; running headless")
+
+    try:
+        await server.wait_for_termination()
+    finally:
+        await service.stop_worker()
+
+
 def _run_grpc_in_thread(cfg: DriverConfig, ready_event: threading.Event) -> None:
     """Run the gRPC server in a background thread.
 
@@ -1185,31 +1251,40 @@ def main(hydra_cfg: DriverConfig) -> None:
         config_filename = f"{cfg.model.model_type.value}-driver.yaml"
         OmegaConf.save(cfg, os.path.join(cfg.output_dir, config_filename), resolve=True)
 
-    # For ManualModel, run the GUI on the main thread and gRPC in a background
-    # thread. This is required on macOS (Cocoa), and we use the same approach
-    # on Linux for consistency and simpler maintenance.
+    # For ManualModel:
+    # - macOS (Cocoa): GUI *must* run on the main thread → gRPC in a daemon thread.
+    # - Linux: grpc.aio must run on the main asyncio event loop to route requests
+    #   correctly (running it in a background thread causes HTTP-404 UNIMPLEMENTED
+    #   errors on grpcio >= 1.67).  We therefore keep gRPC on the main thread and
+    #   run the pygame GUI in a background thread instead.
     if cfg.model.model_type == ModelType.MANUAL:
-        logger.info("Starting gRPC server in background thread (GUI mode)")
+        import sys  # noqa: PLC0415
 
-        ready_event = threading.Event()
-        grpc_thread = threading.Thread(
-            target=_run_grpc_in_thread,
-            args=(cfg, ready_event),
-            name="grpc-server",
-            daemon=True,
-        )
-        grpc_thread.start()
+        if sys.platform == "darwin":
+            # macOS: Cocoa requires GUI on main thread.
+            logger.info("Starting gRPC server in background thread (macOS GUI mode)")
 
-        # Wait for the service (and ManualModel) to be created
-        ready_event.wait(timeout=30.0)
+            ready_event = threading.Event()
+            grpc_thread = threading.Thread(
+                target=_run_grpc_in_thread,
+                args=(cfg, ready_event),
+                name="grpc-server",
+                daemon=True,
+            )
+            grpc_thread.start()
 
-        # Run pygame loop on main thread using the singleton GUI instance
-        ManualModel = _lazy_load_manual_model()
-        if ManualModel._gui_instance is not None:
-            ManualModel._gui_instance.run_main_loop()
+            ready_event.wait(timeout=30.0)
+
+            ManualModel = _lazy_load_manual_model()
+            if ManualModel._gui_instance is not None:
+                ManualModel._gui_instance.run_main_loop()
+            else:
+                logger.warning("ManualModel GUI not initialized, waiting for gRPC thread")
+                grpc_thread.join()
         else:
-            logger.warning("ManualModel GUI not initialized, waiting for gRPC thread")
-            grpc_thread.join()
+            # Linux / other: run gRPC on the main event loop, pygame in a thread.
+            logger.info("Starting gRPC server on main thread (Linux GUI mode)")
+            asyncio.run(_serve_linux_manual(cfg))
 
         return
 

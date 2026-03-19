@@ -1,0 +1,44 @@
+log_level: INFO
+model:
+  model_type: ALPAMAYO_R1
+  checkpoint_path: nvidia/Alpamayo-R1-10B
+  device: cuda
+  tokenizer_path: null
+  simlingo_repo_path: null
+host: 0.0.0.0
+port: 6000
+inference:
+  use_cameras:
+  - camera_cross_left_120fov
+  - camera_front_wide_120fov
+  - camera_cross_right_120fov
+  - camera_front_tele_30fov
+  max_batch_size: 1
+  subsample_factor: 1
+  context_length: 4
+  output_frequency_hz: 10
+route:
+  default_command: 2
+  use_waypoint_commands: true
+  command_distance_threshold: 3.0
+  min_lookahead_distance: 20.0
+trajectory_optimizer:
+  enabled: false
+  smoothness_weight: 1.0
+  deviation_weight: 0.1
+  comfort_weight: 2.0
+  max_iterations: 100
+  retime_in_frenet: true
+  retime_alpha: 0.25
+  max_deviation: 2.0
+  max_heading_change: 0.5236
+  max_speed: 15.0
+  max_accel: 5.0
+  max_abs_yaw_rate: 0.95
+  max_abs_yaw_acc: 1.93
+  max_lon_acc_pos: 4.89
+  max_lon_acc_neg: -4.05
+  max_abs_lon_jerk: 8.37
+output_dir: /mnt/output/driver
+plot_debug_images: false
+rectification: null
