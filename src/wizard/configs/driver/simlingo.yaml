@@ -1,0 +1,54 @@
+# Should be used in defaults list, e.g.
+# - /driver: simlingo
+# Type validation happens at driver runtime via OmegaConf.structured merge
+
+defaults:
+  - simlingo_runtime_configs  # Camera and simulation configs
+  - _self_                    # YAML values override schema defaults
+
+# SimLingo Driver Configuration for AlpaSim
+# SimLingo is a CVPR'25 VLA model (InternVL2-1B backbone) trained on CARLA data.
+# Paper:  https://arxiv.org/abs/2503.09594
+# Repo:   https://github.com/RenzKa/simlingo
+# Model:  https://huggingface.co/RenzKa/simlingo
+
+log_level: ${wizard.log_level}
+
+# Model configuration
+model:
+  model_type: SIMLINGO
+  # pytorch_model.pt produced by deepspeed zero_to_fp32 conversion
+  checkpoint_path: "/workspace/simlingo/outputs/simlingo2/checkpoints/epoch=013.ckpt/pytorch_model.pt"
+  device: "cuda"
+  # Path to the simlingo git repo root (needed for Python imports)
+  simlingo_repo_path: "/workspace/simlingo"
+
+# Server configuration
+host: "0.0.0.0"
+port: ???
+
+# Inference configuration
+inference:
+  # SimLingo uses a single front-facing camera
+  use_cameras:
+    - "camera_front_wide_120fov"
+  max_batch_size: 1   # SimLingo is autoregressive; batch > 1 not supported
+  subsample_factor: 1
+  context_length: 1   # Single-frame model (hist_len=1 in training config)
+  output_frequency_hz: 5  # 5 Hz → waypoint every 0.2 s, 11 steps = 2.2 s horizon
+
+# Route / command configuration
+route:
+  default_command: 2  # 0=right, 1=left, 2=straight
+  use_waypoint_commands: true
+  command_distance_threshold: 3.0
+  min_lookahead_distance: 10.0
+
+# Output configuration
+output_dir: "/mnt/output/driver"
+
+# Trajectory optimisation (disabled for SimLingo by default)
+trajectory_optimizer:
+  enabled: false
+
+plot_debug_images: false

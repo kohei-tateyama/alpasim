@@ -1,0 +1,33 @@
+# @package _global_
+
+# Runtime configuration for SimLingo driver (single front camera)
+# SimLingo uses one front-facing camera rendered at 900x1600.
+# The model internally applies a JPEG round-trip, bottom-quarter crop,
+# and InternVL2 dynamic tiling (448x448 patches) before inference.
+
+runtime:
+  default_scenario_parameters:
+    force_gt_duration_us: 3_000_000
+    n_sim_steps: 100
+    n_rollouts: 1
+    # SimLingo runs at 5 Hz → one inference call every 200 ms
+    egopose_interval_us: 200_000
+    control_timestep_us: 200_000
+    time_start_offset_us: 200_000
+    ego_mask_rig_config_id: null
+
+    # Single front-facing camera at 900x1600
+    cameras:
+      - height: 900
+        width: 1600
+        logical_id: camera_front_wide_120fov
+        frame_interval_us: 200_000
+        shutter_duration_us: 30_000
+        first_frame_offset_us: -30_000
+
+  extra_cameras:
+    # F0 - front wide camera (same extrinsics used for Transfuser / VaVAM)
+    - logical_id: camera_front_wide_120fov
+      rig_to_camera:
+        translation_m: [1.670100, -0.025875, 1.522623]
+        rotation_xyzw: [0.509222, -0.503331, 0.495086, -0.492180]
