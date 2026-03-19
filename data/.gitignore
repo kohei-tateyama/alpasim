@@ -1,6 +1,15 @@
 alpackages/*.tar
 cosmos-models/
 nre-artifacts/artifact-*
+
+# nuScenes raw data (large; not tracked in git)
+v1.0-mini/
+v1.0-mini.tgz
+.v1.0-mini.txt
+maps/
+samples/
+sweeps/
+LICENSE
 rollouts/default-savedir/*
 trafficsim/rollouts/
 ncore-artifacts
